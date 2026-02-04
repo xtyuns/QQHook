@@ -102,9 +102,9 @@ class CatchProvider: ContentProvider() {
                 ))
                 "tea" -> handler.handleTea(
                     value.getAsBoolean("enc"),
-                    value.get("data") as ByteArray? ?: EMPTY_BYTE_ARRAY,
-                    value.get("key") as ByteArray? ?: EMPTY_BYTE_ARRAY,
-                    value.get("result") as ByteArray? ?: EMPTY_BYTE_ARRAY,
+                    value.getAsString("data")?.hexToByteArray() ?: EMPTY_BYTE_ARRAY,
+                    value.getAsString("key")?.hexToByteArray() ?: EMPTY_BYTE_ARRAY,
+                    value.getAsString("result")?.hexToByteArray() ?: EMPTY_BYTE_ARRAY,
                     value.getAsInteger("source")
                 )
             }
