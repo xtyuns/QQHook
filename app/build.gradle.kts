@@ -1,14 +1,16 @@
-import com.android.build.gradle.internal.api.BaseVariantOutputImpl
+import com.android.build.api.variant.VariantOutput
+import com.android.build.api.variant.impl.VariantOutputImpl
+import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.ByteArrayOutputStream
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 abstract class GitCommitCount : ValueSource<Int, ValueSourceParameters.None> {
-    @get:Inject abstract val execOperations: ExecOperations
+    @get:Inject
+    abstract val execOperations: ExecOperations
 
     override fun obtain(): Int {
         val output = ByteArrayOutputStream()
@@ -21,7 +23,8 @@ abstract class GitCommitCount : ValueSource<Int, ValueSourceParameters.None> {
 }
 
 abstract class GitShortHash : ValueSource<String, ValueSourceParameters.None> {
-    @get:Inject abstract val execOperations: ExecOperations
+    @get:Inject
+    abstract val execOperations: ExecOperations
 
     override fun obtain(): String {
         val output = ByteArrayOutputStream()
@@ -35,6 +38,12 @@ abstract class GitShortHash : ValueSource<String, ValueSourceParameters.None> {
 
 val gitCommitCount = providers.of(GitCommitCount::class.java) {}
 val gitShortHash = providers.of(GitShortHash::class.java) {}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
 
 android {
     namespace = "moe.ore.txhook"
@@ -51,12 +60,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
     }
 
     buildFeatures {
@@ -86,8 +89,13 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isCrunchPngs = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            val gitSuffix = providers.provider { getGitHeadRefsSuffix(rootProject, "release") }.get()
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            val gitSuffix = providers.provider {
+                getGitHeadRefsSuffix(rootProject, "release")
+            }.get()
             versionNameSuffix = ".${gitSuffix}"
 
             if (!keystorePath.isNullOrBlank()) {
@@ -115,16 +123,15 @@ android {
         abortOnError = false
     }
 
-    applicationVariants.all {
-        outputs.all {
-            val output = this as BaseVariantOutputImpl
-            output.outputFileName?.let { fileName ->
-                if (fileName.endsWith(".apk")) {
-                    val projectName = rootProject.name
-                    val currentVersionName = versionName
-                    output.outputFileName = "${projectName}-v${currentVersionName}.APK"
-                }
-            }
+    androidComponents.onVariants { variant ->
+        variant.outputs.mapNotNull {
+            it as? VariantOutputImpl
+        }.filter {
+            it.outputFileName.orNull?.endsWith(".apk") == true
+        }.forEach { output ->
+            val projectName = rootProject.name
+            val currentVersionName = output.versionName.get()
+            output.outputFileName.set("${projectName}-v${currentVersionName}.APK")
         }
     }
 }
